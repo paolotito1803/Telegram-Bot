@@ -1,7 +1,25 @@
 version: '3.8'
 
 services:
+  # --- MY PYTHON CODE ---
+  bot:
+    build: .                 # Builds using the Dockerfile in the current folder
+    container_name: quiz_bot
+    env_file:
+      - .env
+    restart: always          # If it crashes, it restarts itself
+    depends_on:              # Wait for DB and Redis to be active
+      - postgres
+      - redis
 
+    environment:
+        # HOST OVERRIDE: Essential!
+      # Within the Docker network, service names become hostnames.
+      - PYTHONUNBUFFERED=1
+      - DB_HOST=postgres
+      - REDIS_HOST=redis
+
+  # --- DATABASE ---
   postgres:
     image: postgres:15-alpine
     container_name: bot_postgres
@@ -11,19 +29,18 @@ services:
       POSTGRES_PASSWORD: ${DB_PASSWORD}
       POSTGRES_DB: ${DB_NAME}
     ports:
-      - "5433:5432"
+      - "5433:5432"         # Useful if you still want to access from PyCharm/Datagrip
     volumes:
       - pg_data:/var/lib/postgresql/data
       - ./init.sql:/docker-entrypoint-initdb.d/init.sql
 
-
+  # --- CACHE ---
   redis:
     image: redis:alpine
     container_name: bot_redis
     restart: always
     ports:
       - "6379:6379"
-
     volumes:
       - redis_data:/data
 

@@ -19,7 +19,7 @@ async def get_questions(category_id):
             row = data['results'][0]
 
     #translate
-    text = [html.unescape(row['question']), html.unescape(row['correct_answer'])] + [html.unescape(x) for x in row['correct_answers']]
+    text = [html.unescape(row['question']), html.unescape(row['correct_answer'])] + [html.unescape(x) for x in row['incorrect_answers']]
 
     loop = asyncio.get_running_loop()
     tranlator = GoogleTranslator(source='auto', target='it')
@@ -42,7 +42,7 @@ async def get_questions(category_id):
     correct_index = options.index(correct_answer)
 
     return {
-        text: question_text,
+        "text": question_text,
         "options": options,
         "correct_index": correct_index
     }

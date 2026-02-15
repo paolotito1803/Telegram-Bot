@@ -5,7 +5,7 @@ import random
 import aiohttp
 from deep_translator import GoogleTranslator
 
-async def get_questions(category_id):
+async def get_questions(category_id, target_lang):
     # take and translate the questions for a specific category
     url = f"https://opentdb.com/api.php?amount=1&type=multiple&category={category_id}"
 
@@ -22,7 +22,7 @@ async def get_questions(category_id):
     text = [html.unescape(row['question']), html.unescape(row['correct_answer'])] + [html.unescape(x) for x in row['incorrect_answers']]
 
     loop = asyncio.get_running_loop()
-    tranlator = GoogleTranslator(source='auto', target='it')
+    tranlator = GoogleTranslator(source='auto', target=target_lang)
 
     try:
         translated = await loop.run_in_executor(None, lambda : tranlator.translate_batch(text))

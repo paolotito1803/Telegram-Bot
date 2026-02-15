@@ -17,7 +17,7 @@ load_dotenv()
 def main():
     print("--- INIZIO MAIN ---")
 
-    # 1. Definisci la funzione post_init PRIMA di costruire l'app
+
     async def post_init(app):
         print("--- TENTO CONNESSIONE DB ---")
         try:
@@ -31,20 +31,20 @@ def main():
     token = os.getenv("TELEGRAM_TOKEN")
     if not token:
         print("❌ ERRORE: TELEGRAM_TOKEN non trovato!")
-        return  # Esce dal programma se manca il token
+        return
 
     application = (
         ApplicationBuilder()
         .token(token)
-        .post_init(post_init)  # <--- SI PASSA QUI!
+        .post_init(post_init)
         .build()
     )
 
-    # 3. handlers registration
+
     application.add_handler(CommandHandler("start", start_command))
     application.add_handler(CallbackQueryHandler(button_handler))
 
-    # 4. start
+
     print("--- 🚀 AVVIO POLLING ---")
     application.run_polling()
 

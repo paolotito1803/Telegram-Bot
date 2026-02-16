@@ -15,7 +15,7 @@ STRINGS = {
         "searching": "Cerco una domanda difficile...",
         "expired": "Sessione scaduta. Ricomincia.",
         "newquestion": "🔄 Creo una nuova domanda...",
-"noquestion":"Scusa, non riesco a trovare la domanda.",
+        "noquestion":"Scusa, non riesco a trovare la domanda.",
         "correct": "✅ Risposta Corretta!",
         "incorrect": "❌ Risposta Sbagliata!",
         "score": "Punteggio totale",

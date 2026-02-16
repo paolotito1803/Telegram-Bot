@@ -1,12 +1,14 @@
+import json
+
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.constants import ParseMode
 from telegram.ext import ContextTypes
 from config import CATEGORIES, STRINGS
-from database import redis_client, update_score
+from database import redis_client, update_score, reset_user_score
 from quiz_service import get_questions
 
 
-async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE) :
+async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Send a message when the command is issued."""
     user_id = update.effective_user.id
     await redis_client.delete(f"lang:{user_id}")
@@ -26,6 +28,25 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE) :
         except Exception as e:
             if "Message is not modified" not in str(e):
                 print(f"Error: {e}")
+
+
+async def leave_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.effective_user.id
+    username = update.effective_user.username or "User"
+
+    # take the pool from the db
+    db_pool = context.application.bot_data["db_pool"]
+
+    try:
+        await reset_user_score(db_pool, user_id)
+
+        #delelte in Redis
+        await redis_client.delete(f"quiz_state:{user_id}")
+        await redis_client.delete(f"last_category:{user_id}")
+
+
+    except Exception as e:
+        await update.message.reply_text("Error.")
 
 async def show_categories(update: Update, context: ContextTypes.DEFAULT_TYPE, lang: str):
 
@@ -72,6 +93,12 @@ async def button_handler (update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # user choose a subject
     if data.startswith("topic_") or data == "retry":
+        if data == "retry":
+            try:
+                await query.edit_message_reply_markup(reply_markup=None)
+            except:
+                pass
+
         if data.startswith("topic_"):
             cat_id = data.split("_")[1]
 
@@ -82,18 +109,21 @@ async def button_handler (update: Update, context: ContextTypes.DEFAULT_TYPE):
             cat_id = await redis_client.get(f"last_category:{user_id}")
             if not cat_id:
                 keyboard = InlineKeyboardMarkup([[InlineKeyboardButton(s["menu"], callback_data="back_menu")]])
-                await query.edit_message_text(s["expired"], reply_markup=keyboard)
+                await context.bot.send_message(chat_id = update.effective_chat.id, text = s["expired"], reply_markup=keyboard)
                 return
 
-            await query.edit_message_text(s["newquestion"])
         #download the question
         quiz = await get_questions(cat_id, language)
         if not quiz:
-            await query.edit_message_text(s["noquestion"])
+            await context.bot.send_message(chat_id = update.effective_chat.id, text =s["noquestion"])
             return
 
         # save in redis the correct answerer
-        await redis_client.set(f"quiz_state:{user_id}", quiz['correct_index'], ex=60)
+        quiz_data = {
+            "correct_index": quiz["correct_index"],
+            "options": quiz["options"]
+        }
+        await redis_client.set(f"quiz_state:{user_id}", json.dumps(quiz_data), ex=60)
 
         # button for answer
         options_button = []
@@ -112,17 +142,29 @@ async def button_handler (update: Update, context: ContextTypes.DEFAULT_TYPE):
     # the user gave an answer
     elif data.startswith("ans_"):
         given_idx = int(data.split("_")[1])
-        correct_index = await redis_client.get(f"quiz_state:{user_id}")
-        if correct_index is None:
-            await query.edit_message_text("⚠️ "+s["expired"])
+        raw_data = await redis_client.get(f"quiz_state:{user_id}")
+
+        if raw_data is None:
+            await context.bot.send_message(chat_id = update.effective_chat.id, text ="⚠️ "+s["expired"])
             return
-        is_correct = (int(correct_index) == given_idx)
+
+        quiz_data = json.loads(raw_data)
+        options = quiz_data['options']
+        correct_index = quiz_data["correct_index"]
+
+        is_correct = (correct_index == given_idx)
         point = 1 if is_correct else 0
         db_pool = context.application.bot_data["db_pool"]
         total_score = await update_score(db_pool, user_id, username, point=point)
 
+        correct_text = options[correct_index]
+
+        msg = ""
         # check
-        msg = s["correct"] if is_correct else s["incorrect"]
+        if is_correct:
+            msg = f"\n\n{s['correct']}\n👉 *{correct_text}*"
+        else:
+            msg = f"\n\n{s['incorrect']}\n👉 *{correct_text}*"
 
 
         final_message = (
@@ -139,8 +181,18 @@ async def button_handler (update: Update, context: ContextTypes.DEFAULT_TYPE):
         ])
 
 
-        await query.edit_message_text(text=final_message, reply_markup=retry_button, parse_mode="Markdown")
+        # Delete the previous button
+        try:
+            await query.edit_message_reply_markup(reply_markup=None)
+        except:
+            pass
+
+        await context.bot.send_message(chat_id = update.effective_chat.id, text = final_message, reply_markup=retry_button, parse_mode='Markdown')
 
     # back to menu
     elif data == "back_menu":
+        try:
+            await query.edit_message_reply_markup(reply_markup=None)
+        except:
+            pass
         await start_command(update, context)

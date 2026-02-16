@@ -44,3 +44,12 @@ async def get_top_userss(pool, limit = 10):
         """, limit)
     return rows
 
+async def reset_user_score(pool, user_id):
+    async with pool.acquire() as conn:
+        await conn.execute("""
+            UPDATE users
+            SET total_score = 0
+            WHERE telegram_id = $1;
+        """, user_id)
+
+

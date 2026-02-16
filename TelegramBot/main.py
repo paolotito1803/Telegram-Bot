@@ -3,7 +3,7 @@ import os
 from dotenv import load_dotenv
 from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandler
 from database import create_pool
-from hendlers import start_command, button_handler
+from hendlers import start_command, button_handler, leave_command
 
 # logging configuration
 logging.basicConfig(
@@ -42,6 +42,7 @@ def main():
 
 
     application.add_handler(CommandHandler("start", start_command))
+    application.add_handler(CommandHandler("leave", leave_command))
     application.add_handler(CallbackQueryHandler(button_handler))
 
 

@@ -22,10 +22,10 @@ async def get_questions(category_id, target_lang):
     text = [html.unescape(row['question']), html.unescape(row['correct_answer'])] + [html.unescape(x) for x in row['incorrect_answers']]
 
     loop = asyncio.get_running_loop()
-    tranlator = GoogleTranslator(source='auto', target=target_lang)
+    translator = GoogleTranslator(source='auto', target=target_lang)
 
     try:
-        translated = await loop.run_in_executor(None, lambda : tranlator.translate_batch(text))
+        translated = await loop.run_in_executor(None, lambda : translator.translate_batch(text))
     except Exception as e:
         print(f"Translation error {e}")
         return None
